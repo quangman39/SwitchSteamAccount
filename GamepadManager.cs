@@ -29,8 +29,11 @@ public class GamepadManager
     
     public const ushort DPadUp = 0x0001;
     public const ushort DPadDown = 0x0002;
+    public const ushort DPadLeft = 0x0004;
+    public const ushort DPadRight = 0x0008;
     public const ushort A = 0x1000;
     public const ushort B = 0x2000;
+    public const ushort X = 0x4000;
     
     public static ushort GetButtons()
     {

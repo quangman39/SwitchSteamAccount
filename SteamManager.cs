@@ -103,22 +103,41 @@ public static class SteamManager
     // LOGIN
     // =====================================================
 
-    public static async Task Login(Account account)
+    public static async Task OpenSteam(Action<string>? reportStatus = null)
     {
         // Đóng Steam hiện tại
+        reportStatus?.Invoke("Closing Steam...");
         await CloseSteam();
 
 
         // Mở Steam
+        reportStatus?.Invoke("Opening Steam...");
         Process.Start(new ProcessStartInfo
         {
             FileName = SteamPath,
             UseShellExecute = true
         });
+    }
+
+
+    public static async Task FillLogin(
+        Account account,
+        Action<string>? reportStatus = null)
+    {
+        if (string.IsNullOrWhiteSpace(account.Name))
+        {
+            throw new ArgumentException("Username không được để trống.");
+        }
+
+        if (account.Password == null)
+        {
+            throw new ArgumentException("Password không được để trống.");
+        }
 
 
         // Chờ cửa sổ Login xuất hiện
-        Process? loginWindow = await FindLoginWindowAsync();
+        reportStatus?.Invoke("Waiting for Steam Login window...");
+        Process? loginWindow = await FindLoginWindowAsync(reportStatus);
 
         if (loginWindow == null)
         {
@@ -129,6 +148,7 @@ public static class SteamManager
 
 
         // Đưa Steam Login lên foreground
+        reportStatus?.Invoke("Focusing Steam Login window...");
         bool focused =
             SetForegroundWindow(loginWindow.MainWindowHandle);
 
@@ -141,27 +161,34 @@ public static class SteamManager
 
 
         await Task.Delay(500);
+        reportStatus?.Invoke("Waiting for login fields...");
+
+        await Task.Delay(1500);
 
 
         // Username
+        reportStatus?.Invoke("Typing username...");
         SendUnicodeText(account.Name);
 
         await Task.Delay(150);
 
 
         // Chuyển sang ô password
+        reportStatus?.Invoke("Moving to password field...");
         SendKey(VK_TAB);
 
         await Task.Delay(150);
 
 
         // Password
+        reportStatus?.Invoke("Typing password...");
         SendUnicodeText(account.Password);
 
         await Task.Delay(150);
 
 
         // Enter để Login
+        reportStatus?.Invoke("Submitting login...");
         SendKey(VK_RETURN);
     }
 
@@ -301,10 +328,13 @@ public static class SteamManager
     // FIND STEAM LOGIN WINDOW
     // =====================================================
 
-    private static async Task<Process?> FindLoginWindowAsync()
+    private static async Task<Process?> FindLoginWindowAsync(
+        Action<string>? reportStatus = null)
     {
-        // Thử trong tối đa khoảng 10 giây
-        for (int i = 0; i < 20; i++)
+        string? lastWindowTitle = null;
+
+        // Thử trong tối đa khoảng 30 giây
+        for (int i = 0; i < 60; i++)
         {
             Process[] processes =
                 Process.GetProcessesByName(
@@ -314,12 +344,24 @@ public static class SteamManager
 
             foreach (Process process in processes)
             {
+                process.Refresh();
+
+                string title = process.MainWindowTitle;
+
+                if (
+                    !string.IsNullOrWhiteSpace(title) &&
+                    title != lastWindowTitle
+                )
+                {
+                    reportStatus?.Invoke(
+                        "Found Steam window: " + title
+                    );
+                    lastWindowTitle = title;
+                }
+
                 if (
                     process.MainWindowHandle != IntPtr.Zero &&
-                    process.MainWindowTitle.Contains(
-                        "Steam",
-                        StringComparison.OrdinalIgnoreCase
-                    )
+                    IsSteamLoginWindowTitle(title)
                 )
                 {
                     return process;
@@ -335,6 +377,38 @@ public static class SteamManager
     }
 
 
+    private static bool IsSteamLoginWindowTitle(string title)
+    {
+        if (
+            !title.Contains(
+                "Steam",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            return false;
+        }
+
+        return
+            title.Contains(
+                "Sign in",
+                StringComparison.OrdinalIgnoreCase
+            ) ||
+            title.Contains(
+                "Login",
+                StringComparison.OrdinalIgnoreCase
+            ) ||
+            title.Contains(
+                "Log in",
+                StringComparison.OrdinalIgnoreCase
+            ) ||
+            title.Contains(
+                "Đăng nhập",
+                StringComparison.OrdinalIgnoreCase
+            );
+    }
+
+
     // =====================================================
     // CLOSE STEAM
     // =====================================================
@@ -347,9 +421,38 @@ public static class SteamManager
 
         foreach (Process process in processes)
         {
-            process.Kill();
+            if (process.HasExited)
+            {
+                continue;
+            }
+
+            bool closeRequested = process.CloseMainWindow();
+
+            if (
+                closeRequested &&
+                await WaitForExitAsync(process, 5000)
+            )
+            {
+                continue;
+            }
+
+            if (!process.HasExited)
+            {
+                process.Kill();
+            }
 
             await process.WaitForExitAsync();
         }
+    }
+
+
+    private static async Task<bool> WaitForExitAsync(
+        Process process,
+        int millisecondsDelay)
+    {
+        Task waitForExit = process.WaitForExitAsync();
+        Task timeout = Task.Delay(millisecondsDelay);
+
+        return await Task.WhenAny(waitForExit, timeout) == waitForExit;
     }
 }

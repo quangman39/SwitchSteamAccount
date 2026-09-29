@@ -1,0 +1,32 @@
+# Build output
+bin/
+obj/
+
+# User-specific Visual Studio files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio workspace/cache
+.vs/
+
+# Rider/ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# Test results and coverage
+TestResults/
+*.coverage
+*.coveragexml
+coverage/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# OS metadata
+Thumbs.db
+Desktop.ini

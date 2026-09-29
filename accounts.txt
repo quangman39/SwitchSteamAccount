@@ -1,0 +1,7 @@
+manquan39|manquan39@gmail.com|danchoii
+Test Account 01|test01@example.com|password01
+Test Account 02|test02@example.com|password02
+Steam Alt Demo|steam_alt_demo|demo123
+Guest Account|guest_user|guestpass
+Old Account|old_account_name|oldpass456
+Family Share|family_share_user|share789
